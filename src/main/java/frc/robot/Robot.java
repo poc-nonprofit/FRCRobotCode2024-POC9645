@@ -2,10 +2,10 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.event.EventLoop;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.XboxController;
-import frc.robot.upper.launcher.LauncherSpeed;
+import frc.robot.drivebase.manager.DriveManager;
+
+import frc.robot.upper.launcher.Launcher;
 
 
 public class Robot extends TimedRobot {
@@ -14,20 +14,21 @@ public class Robot extends TimedRobot {
 
     private final XboxController gamepad = new XboxController(0);
 
-    /**
-     * This function is run when the robot is first started up and should be used
-     * for any
-     * initialization code.
-     */
+    private DriveManager driveManager;
+    private Launcher launcher;
+
     @Override
     public void robotInit() {
-
+        driveManager = new DriveManager(gamepad);
+        launcher = new Launcher(gamepad);
     }
+
     @Override
     public void robotPeriodic() {
         eventLoop.poll();
+        driveManager.poll(getPeriod());
+        launcher.poll();
     }
-
 
     @Override
     public void autonomousInit() {
@@ -40,12 +41,12 @@ public class Robot extends TimedRobot {
 
     @Override
     public void teleopInit() {
-        gamepad.rightBumper(eventLoop).ifHigh(LauncherSpeed::increaseLauncherMaxSpeed);
-        gamepad.leftBumper(eventLoop).ifHigh(LauncherSpeed::decreaseLauncherMaxSpeed);
+
     }
 
     @Override
     public void teleopPeriodic() {
+
     }
 
     @Override
