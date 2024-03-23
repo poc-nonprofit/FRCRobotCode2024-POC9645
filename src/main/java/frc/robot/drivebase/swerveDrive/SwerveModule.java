@@ -2,6 +2,7 @@ package frc.robot.drivebase.swerveDrive;
 
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.revrobotics.*;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
@@ -16,6 +17,7 @@ import edu.wpi.first.wpilibj.shuffleboard.BuiltInLayouts;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardLayout;
+import frc.robot.util.rotation.NormalizeRotation;
 
 import java.util.Map;
 
@@ -31,11 +33,20 @@ public class SwerveModule {
 
     private final CANcoder cancoder;
 
-    private final PIDController drivePID = new PIDController(0, 0, 0);
-    private final PIDController rotatePID = new PIDController(0.1,0,0);
+    private final PIDController drivePID = new PIDController(1, 0, 0);
+    /*private final ProfiledPIDController rotatePID = new ProfiledPIDController(
+        0.25,0,0,
+        new TrapezoidProfile.Constraints(
+            SwerveVariables.maxAngularSpeed, SwerveVariables.maxAngularSpeed * 2
+        )
+    );*/
 
-    private final SimpleMotorFeedforward driveFeedforward = new SimpleMotorFeedforward(0, 0);
-    private final SimpleMotorFeedforward rotateFeedforward = new SimpleMotorFeedforward(0, 0);
+    private final PIDController rotatePID = new PIDController(1,0,0);
+
+    //private final PIDController rotatePID = new PIDController(1,0,0);
+
+    private final SimpleMotorFeedforward driveFeedforward = new SimpleMotorFeedforward(0.05, 0);
+    private final SimpleMotorFeedforward rotateFeedforward = new SimpleMotorFeedforward(0.05, 0);
 
     private final String identifier;
     private GenericEntry driveMotorWidget;
@@ -46,6 +57,7 @@ public class SwerveModule {
 
     private GenericEntry driveEncoderWidget;
 
+    private GenericEntry desiredRotation;
     private Rotation2d lastAngle;
 
     public SwerveModule(int driveMotorChannel, int rotateMotorChannel, int CANCoderChannel, Translation2d position,
@@ -56,10 +68,19 @@ public class SwerveModule {
         driveEncoder = driveMotor.getEncoder();
         rotateEncoder = rotateMotor.getEncoder();
 
+        //rotateMotor.setInverted(true);
+
         cancoder = new CANcoder(CANCoderChannel);
 
         identifier = identifierStr;
 
+        driveEncoder.setVelocityConversionFactor(8.14);
+
+        if( CANCoderChannel == 14 ){
+            driveMotor.setInverted(true);
+        }
+
+        //rotatePID.enableContinuousInput(-Math.PI, Math.PI);
 
         initWidget();
     }
@@ -88,75 +109,99 @@ public class SwerveModule {
             .add("Rotation " + identifier, 0)
             .withPosition(2, 1)
             .withWidget(BuiltInWidgets.kGyro)
-            .withProperties(Map.of("min", -180, "max", 180))
+            .withProperties(Map.of("min", -180, "max", 180,"counterclockwise",true))
             .getEntry();
 
         driveEncoderWidget = Shuffleboard.getTab("Swerve " + identifier)
             .add("DRIVE ENCODER VALUE", 0)
             .getEntry();
 
+        desiredRotation = Shuffleboard.getTab("Swerve " + identifier)
+            .add("Desired Rot", 0)
+            .getEntry();
+
     }
 
     public void updateWidget(double drive, double rotate) {
-        encoderWidget.setDouble(cancoder.getPosition().getValue());
+        encoderWidget.setDouble(cancoder.getAbsolutePosition().getValue());
         driveMotorWidget.setDouble(drive);
         rotateMotorWidget.setDouble(rotate);
         rotationWidget
-            .setDouble(Rotation2d.fromRotations(cancoder.getPosition().getValue()).getDegrees());
+            .setDouble(Rotation2d.fromRotations(cancoder.getAbsolutePosition().getValue()).getDegrees());
         driveEncoderWidget.setDouble(driveEncoder.getPosition());
     }
 
     public void updateWidget() {
-        encoderWidget.setDouble(cancoder.getPosition().getValue());
+        encoderWidget.setDouble(cancoder.getAbsolutePosition().getValue());
         driveMotorWidget.setDouble(driveMotor.getAppliedOutput());
         rotateMotorWidget.setDouble(rotateMotor.getAppliedOutput());
         rotationWidget
-            .setDouble(Rotation2d.fromRotations(cancoder.getPosition().getValue()).getDegrees());
+            .setDouble(Rotation2d.fromRotations(cancoder.getAbsolutePosition().getValue()).getDegrees());
         driveEncoderWidget.setDouble(driveEncoder.getPosition());
     }
 
     public SwerveModuleState getState() {
+        double velocity = driveEncoder.getVelocity() / (8.14 * 60) * 2 * SwerveVariables.wheelRaduis * Math.PI;
         return new SwerveModuleState(
-
+            driveEncoder.getVelocity(),
+            Rotation2d.fromRotations(cancoder.getAbsolutePosition().getValue())
         );
     }
 
     public SwerveModulePosition getPosition() {
         return new SwerveModulePosition(driveEncoder.getPosition() / SwerveVariables.gearRatio
             * SwerveVariables.wheelRaduis * 2 * Math.PI/* add gear ratio calc */,
-            new Rotation2d(cancoder.getPosition().getValue()));
+            Rotation2d.fromRotations(cancoder.getAbsolutePosition().getValue()));
     }
 
     public void setState(SwerveModuleState state) {
-        Rotation2d currentRotation = new Rotation2d(cancoder.getPosition().getValue());
+        //Rotation2d currentRotation = new Rotation2d(NormalizeRotation.normalizeRotation(cancoder.getPosition().getValue()));
+        Rotation2d currentRotation = NormalizeRotation.normalizeRotation(Rotation2d.fromRotations(cancoder.getAbsolutePosition().getValue()));
 
         SwerveModuleState newState = SwerveModuleState.optimize(state, currentRotation);
-
-        state.speedMetersPerSecond *= state.angle.minus(currentRotation).getCos();
+        //SwerveModuleState newState = state;
+        //SwerveModuleState newState = state;
+        newState.speedMetersPerSecond *= newState.angle.minus(currentRotation).getCos();
 
         Rotation2d newAngle = (Math.abs(newState.speedMetersPerSecond) <= (SwerveVariables.getMaxSpeed()/100) )
             ? lastAngle:
-            newState.angle;
+            NormalizeRotation.normalizeRotationWithinPlusMinusHalf(newState.angle);
 
-        /*double driveOutput = drivePID.calculate(driveEncoder.getVelocity(), newState.speedMetersPerSecond);
-        double driveFeedForward = driveFeedforward.calculate(newState.speedMetersPerSecond);*/
+        if(newAngle == null) {
+            newAngle = newState.angle;
+        }
 
-        double rotateOutput = rotatePID.calculate(cancoder.getPosition().getValue(),newState.angle.getRotations());
-        double rotateFeedForward = rotateFeedforward.calculate(rotatePID.getSetpoint());
+        lastAngle = newAngle;
 
-        System.out.println(newState.angle.getDegrees());
+        newAngle = NormalizeRotation.normalizeRotationWithinPlusMinusHalf(newAngle);
+
+        double newspeedMetersPerSecond = driveEncoder.getVelocity() / (8.14 * 60) * 2 * SwerveVariables.wheelRaduis * Math.PI;
+
+        //double driveOutput = drivePID.calculate(driveEncoder.getVelocity(), newState.speedMetersPerSecond);
+        //double driveFeedForward = driveFeedforward.calculate(newState.speedMetersPerSecond);
+
+        double rotateOutput = rotatePID.calculate(NormalizeRotation.normalizeRotationWithinPlusMinusHalf(currentRotation.getRotations()),NormalizeRotation.normalizeRotationWithinPlusMinusHalf(newAngle.getRotations()));
+        //double rotateOutput = NormalizeRotation.normalizeRotationWithinPlusMinusHalf(newAngle.getRotations()) - NormalizeRotation.normalizeRotationWithinPlusMinusHalf(currentRotation.getRotations())
+
+        double rotateFF = rotateFeedforward.calculate(rotatePID.getSetpoint());
 
         //double driveOutputValue = (driveOutput + driveFeedForward) / RobotController.getBatteryVoltage();
-        //double driveOutputValue = newState.speedMetersPerSecond;
-        double rotateOutputValue = (rotateOutput + rotateFeedForward) / RobotController.getBatteryVoltage();
-
+        //double driveOutputValue = driveOutput + driveFeedForward;
+        double driveOutputValue = newState.speedMetersPerSecond;
+        //double rotateOutputValue = (rotateOutput + rotateFeedForward) / RobotController.getBatteryVoltage();
+        double rotateOutputValue = MathUtil.applyDeadband((rotateOutput/* + rotateFF*/) / 1,0);
         //updateWidget(driveOutputValue, rotateOutputValue);
         updateWidget(newState.speedMetersPerSecond, rotateOutputValue);
 
-        driveMotor.set(newState.speedMetersPerSecond);
+        desiredRotation.setDouble(newAngle.getRotations());
+
+        if(Math.abs(newAngle.minus(currentRotation).getDegrees()) < 3.0){
+            rotateOutputValue = 0;
+        }
+
+        //rotateMotor.set(newAngle.);
+        driveMotor.set(driveOutputValue);
         rotateMotor.set(rotateOutputValue);
-        /*driveMotor.set(driveOutputValue);
-        rotateMotor.set(rotateOutputValue);*/
         //rotateMotor.set(newState.angle.getRadians() /10);
 
 

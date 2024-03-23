@@ -8,6 +8,7 @@ import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.wpilibj.SPI;
 
 import static frc.robot.drivebase.swerveDrive.SwerveDashboardWidgets.chassisAngle;
+import static frc.robot.gyro.NavXGyro.gyroSensor;
 
 public class SwerveDriveTrain {
 
@@ -16,10 +17,10 @@ public class SwerveDriveTrain {
     private final SwerveModule swerveRL = new SwerveModule(7, 8, 14, SwerveVariables.moduleLocations.RL.getValue(), "Rear Left");
     private final SwerveModule swerveFL = new SwerveModule(1, 2, 11, SwerveVariables.moduleLocations.FL.getValue(), "Front Left");
 
-    private final AHRS gyroSensor = new AHRS(SPI.Port.kMXP);
-
-    private StructArrayPublisher<SwerveModuleState> publisher = NetworkTableInstance.getDefault()
+    private final StructArrayPublisher<SwerveModuleState> driveTrainPublisher = NetworkTableInstance.getDefault()
         .getStructArrayTopic("SwerveDriveState", SwerveModuleState.struct).publish();
+    private final StructArrayPublisher<SwerveModuleState> moduleStatePublisher = NetworkTableInstance.getDefault()
+        .getStructArrayTopic("SwerveModuleState", SwerveModuleState.struct).publish();
 
     private final SwerveDriveKinematics kinematics =
         new SwerveDriveKinematics(
@@ -50,15 +51,14 @@ public class SwerveDriveTrain {
         SwerveModuleState[] state = kinematics.toSwerveModuleStates(
             ChassisSpeeds.discretize(
                 /*SwerveVariables.fieldOriented*/ SwerveVariables.getFieldOriented()
-                    ? ChassisSpeeds.fromFieldRelativeSpeeds(x,y,rotation,Rotation2d.fromDegrees(gyroSensor.getAngle()))
-                    : new ChassisSpeeds(x,y,rotation),periodSeconds
+                    ? ChassisSpeeds.fromFieldRelativeSpeeds(x, y, rotation, Rotation2d.fromDegrees(gyroSensor.getAngle()))
+                    : new ChassisSpeeds(x, y, rotation), periodSeconds
             )
         );
 
-        SwerveDriveKinematics.desaturateWheelSpeeds(state,SwerveVariables.maxSpeed);
+        SwerveDriveKinematics.desaturateWheelSpeeds(state, SwerveVariables.getMaxSpeed());
 
-        publisher.set(state);
-
+        updatePublisher(state);
 
         swerveFL.setState(state[0]);
         swerveFR.setState(state[1]);
@@ -67,14 +67,26 @@ public class SwerveDriveTrain {
 
     }
 
-    public void stop(){
+    private void updatePublisher(SwerveModuleState[] state) {
+        driveTrainPublisher.set(state);
+        moduleStatePublisher.set(
+            new SwerveModuleState[]{
+                swerveFL.getState(),
+                swerveFR.getState(),
+                swerveRL.getState(),
+                swerveRR.getState()
+            }
+        );
+    }
+
+    public void stop() {
         swerveFL.stop();
         swerveFR.stop();
         swerveRL.stop();
         swerveRR.stop();
     }
 
-    public void updateWidget(){
+    public void updateWidget() {
         swerveFL.updateWidget();
         swerveFR.updateWidget();
         swerveRL.updateWidget();

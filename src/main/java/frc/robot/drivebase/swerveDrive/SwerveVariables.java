@@ -16,9 +16,10 @@ public class SwerveVariables {
     // spark max encoder with brushless-motor reports 42 counts per rotation
     public static final int brushlessMotorResolution = 42;
 
-    public static double maxAngularSpeed = Math.toRadians(45);
+    //45 degrees
+    public static double maxAngularSpeed = Math.PI / 4;
 
-    //0.02M / sec
+    //20% of Max motor output
     public static final double maxSpeed = 0.2;
 
     public static final boolean fieldOriented = false;
@@ -34,15 +35,19 @@ public class SwerveVariables {
         return SwerveDashboardWidgets.maxSpeedWidget.getDouble(maxSpeed);
     }
 
+    public static double getMaxAngularSpeed(){
+        return SwerveDashboardWidgets.maxAngularSpeedWidget.getDouble(Math.PI/4);
+    }
+
     public enum moduleLocations {
-        FL(0.381, 0.381),
-        FR(0.381, -0.381),
-        RL(-0.381, 0.381),
-        RR(-0.381, -0.381);
+        FL(0.5, 0.5),
+        FR(0.5, -0.5),
+        RL(-0.5, 0.5),
+        RR(-0.5, -0.5);
 
-        private Translation2d value;
+        private final Translation2d value;
 
-        private moduleLocations(double x, double y) {
+        moduleLocations(double x, double y) {
             this.value = new Translation2d(x, y);
         }
 

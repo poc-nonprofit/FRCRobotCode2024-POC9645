@@ -16,9 +16,9 @@ public class DriveManager {
     //private SimpleBackForwardSwerveDriveTrain simpleTrain;
     private final XboxController gamepad;
 
-    private final SlewRateLimiter limiterX = new SlewRateLimiter(1);
-    private final SlewRateLimiter limiterY = new SlewRateLimiter(1);
-    private final SlewRateLimiter limiterRot = new SlewRateLimiter(1);
+    private final SlewRateLimiter limiterX = new SlewRateLimiter(3);
+    private final SlewRateLimiter limiterY = new SlewRateLimiter(3);
+    private final SlewRateLimiter limiterRot = new SlewRateLimiter(3);
 
     private final EventLoop eventLoop = new EventLoop();
 
@@ -46,7 +46,7 @@ public class DriveManager {
             * -SwerveVariables.getMaxSpeed();
         double rotation = limiterRot
             .calculate(MathUtil.applyDeadband(gamepad.getRightX(), ControllerVariables.RightStickXDeadZone))
-            * SwerveVariables.maxAngularSpeed;
+            * SwerveVariables.getMaxAngularSpeed();
 
         SwerveDashboardWidgets.inputX.setDouble(gamepad.getLeftY());
         SwerveDashboardWidgets.inputY.setDouble(gamepad.getLeftX());
@@ -62,6 +62,8 @@ public class DriveManager {
         if (Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && Math.abs(rotation) < 0.01) {
             driveTrain.stop();
             //simpleTrain.stop();
+        }else if (Math.abs(gamepad.getLeftX()) < 0.015 && Math.abs(gamepad.getLeftY()) < 0.015 && Math.abs(gamepad.getRightX()) < 0.015){
+            driveTrain.stop();
         } else {
             //simpleTrain.drive(x,periodSeconds);
             driveTrain.drive(x, y, rotation, periodSeconds);
@@ -73,13 +75,13 @@ public class DriveManager {
 
         // SwerveVariables.maxSpeed += 0.1;
         SwerveDashboardWidgets.maxSpeedWidget.setDouble(
-            SwerveVariables.getMaxSpeed() + 0.1);
+            Math.min(SwerveVariables.getMaxSpeed() + 0.05, 1.0)
+        );
     }
 
     public static void decreaseDriveSpeed() {
         SwerveDashboardWidgets.maxSpeedWidget.setDouble(
             Math.max(SwerveVariables.getMaxSpeed() - 0.1, 0));
-
     }
 
     public static void increaseRotateSpeed() {
@@ -88,7 +90,6 @@ public class DriveManager {
 
     public static void decreaseRotateSpeed() {
         SwerveVariables.maxAngularSpeed = Math.max(SwerveVariables.maxAngularSpeed - 0.05, 0);
-
     }
 
 }

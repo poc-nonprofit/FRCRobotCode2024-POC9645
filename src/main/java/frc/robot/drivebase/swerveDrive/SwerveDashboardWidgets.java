@@ -13,6 +13,8 @@ public class SwerveDashboardWidgets {
 
     public static GenericEntry maxSpeedWidget;
 
+    public static GenericEntry maxAngularSpeedWidget;
+
     public static ShuffleboardLayout inputContainer;
     public static ShuffleboardLayout outputContainer;
 
@@ -37,8 +39,15 @@ public class SwerveDashboardWidgets {
         maxSpeedWidget = Shuffleboard.getTab("Swerve DriveTrain")
             .add("Max Speed", SwerveVariables.maxSpeed)
             .withWidget(BuiltInWidgets.kNumberSlider)
-            .withProperties(Map.of("min", 0, "max", 5.0))
+            .withProperties(Map.of("min", 0, "max", 1.0))
             .withPosition(1,0)
+            .getEntry();
+
+        maxAngularSpeedWidget = Shuffleboard.getTab("Swerve DriveTrain")
+            .add("Max Angular Speed(radian)",SwerveVariables.maxAngularSpeed)
+            .withWidget(BuiltInWidgets.kNumberSlider)
+            .withProperties(Map.of("min",0,"max",Math.PI))
+            .withPosition(1,1)
             .getEntry();
 
         inputContainer = Shuffleboard.getTab("Swerve DriveTrain")

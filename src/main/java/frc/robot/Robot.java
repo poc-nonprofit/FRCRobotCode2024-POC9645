@@ -5,6 +5,7 @@ import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj.XboxController;
 import frc.robot.drivebase.manager.DriveManager;
 
+import frc.robot.gyro.NavXGyro;
 import frc.robot.upper.launcher.Launcher;
 
 
@@ -15,19 +16,24 @@ public class Robot extends TimedRobot {
     private final XboxController gamepad = new XboxController(0);
 
     private DriveManager driveManager;
-    private Launcher launcher;
+    //private Launcher launcher;
+
+
+
 
     @Override
     public void robotInit() {
         driveManager = new DriveManager(gamepad);
-        launcher = new Launcher(gamepad);
+        //launcher = new Launcher(gamepad);
+        NavXGyro.initNTable();
     }
 
     @Override
     public void robotPeriodic() {
         eventLoop.poll();
         driveManager.poll(getPeriod());
-        launcher.poll();
+        //launcher.poll();
+        NavXGyro.update();
     }
 
     @Override
