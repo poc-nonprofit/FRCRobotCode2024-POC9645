@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardLayout;
 import frc.robot.util.rotation.NormalizeRotation;
+import org.opencv.core.Mat;
 
 import java.util.Map;
 
@@ -75,10 +76,6 @@ public class SwerveModule {
         identifier = identifierStr;
 
         driveEncoder.setVelocityConversionFactor(8.14);
-
-        if( CANCoderChannel == 14 ){
-            driveMotor.setInverted(true);
-        }
 
         //rotatePID.enableContinuousInput(-Math.PI, Math.PI);
 
@@ -143,7 +140,7 @@ public class SwerveModule {
     public SwerveModuleState getState() {
         double velocity = driveEncoder.getVelocity() / (8.14 * 60) * 2 * SwerveVariables.wheelRaduis * Math.PI;
         return new SwerveModuleState(
-            driveEncoder.getVelocity(),
+            driveMotor.getAppliedOutput(),
             Rotation2d.fromRotations(cancoder.getAbsolutePosition().getValue())
         );
     }
@@ -159,6 +156,8 @@ public class SwerveModule {
         Rotation2d currentRotation = NormalizeRotation.normalizeRotation(Rotation2d.fromRotations(cancoder.getAbsolutePosition().getValue()));
 
         SwerveModuleState newState = SwerveModuleState.optimize(state, currentRotation);
+        //SwerveModuleState newState = SwerveModuleOptimizer.optimize(state,currentRotation);
+
         //SwerveModuleState newState = state;
         //SwerveModuleState newState = state;
         newState.speedMetersPerSecond *= newState.angle.minus(currentRotation).getCos();
@@ -192,10 +191,9 @@ public class SwerveModule {
         double rotateOutputValue = MathUtil.applyDeadband((rotateOutput/* + rotateFF*/) / 1,0);
         //updateWidget(driveOutputValue, rotateOutputValue);
         updateWidget(newState.speedMetersPerSecond, rotateOutputValue);
-
         desiredRotation.setDouble(newAngle.getRotations());
 
-        if(Math.abs(newAngle.minus(currentRotation).getDegrees()) < 3.0){
+        if(Math.abs(newAngle.minus(currentRotation).getDegrees()) < 1.0){
             rotateOutputValue = 0;
         }
 
@@ -204,6 +202,39 @@ public class SwerveModule {
         rotateMotor.set(rotateOutputValue);
         //rotateMotor.set(newState.angle.getRadians() /10);
 
+    }
+
+    public void setStateRotatingMoving(SwerveModuleState state,double x,double y,int offset,Rotation2d theta){
+        Rotation2d currentRotation = NormalizeRotation.normalizeRotation(Rotation2d.fromRotations(cancoder.getAbsolutePosition().getValue()));
+
+        SwerveModuleState newState = SwerveModuleState.optimize(state, currentRotation);
+
+        newState.speedMetersPerSecond *= newState.angle.minus(currentRotation).getCos();
+
+        Rotation2d newAngle = (Math.abs(newState.speedMetersPerSecond) <= (SwerveVariables.getMaxSpeed()/100) )
+            ? lastAngle:
+            NormalizeRotation.normalizeRotationWithinPlusMinusHalf(newState.angle);
+
+        if(newAngle == null) {
+            newAngle = newState.angle;
+        }
+
+        newAngle = NormalizeRotation.normalizeRotationWithinPlusMinusHalf(newAngle);
+
+        double o = driveMotor.getAppliedOutput();
+
+        double nuke = theta.plus(Rotation2d.fromDegrees(offset)).getRadians();
+
+        double unkox = x+o*Math.cos(nuke);
+        double unkoy = y+o* Math.sin(nuke);
+
+        double rotateOutput = Math.atan(unkoy/unkox) / (2*Math.PI);
+        double rotateOutputValue = rotatePID.calculate(currentRotation.getRotations(),rotateOutput);
+
+        driveMotor.set(Math.sqrt(Math.pow(unkox,2)+Math.pow(unkoy,2)));
+        rotateMotor.set(rotateOutputValue);
+
+        updateWidget(newState.speedMetersPerSecond, rotateOutput);
 
     }
 
@@ -216,5 +247,17 @@ public class SwerveModule {
             driveMotor.set(0);
         if (rotateMotor != null)
             rotateMotor.set(0);
+    }
+
+    public void reset(){
+        /*System.out.println("called");
+        boolean completed = false;
+        while (!completed){
+            Rotation2d currentRotation = NormalizeRotation.normalizeRotation(Rotation2d.fromRotations(cancoder.getAbsolutePosition().getValue()));
+            double rotateOutput = rotatePID.calculate(NormalizeRotation.normalizeRotationWithinPlusMinusHalf(currentRotation.getRotations()),0);
+            rotateMotor.set(rotateOutput);
+            if(Math.abs(currentRotation.getRotations()) < Rotation2d.fromDegrees(1).getRotations())
+                completed = true;
+        }*/
     }
 }

@@ -10,7 +10,13 @@ public class NavXGyro {
 
     public static final AHRS gyroSensor = new AHRS(SPI.Port.kMXP);
 
+    public static final Rotation2d offset = Rotation2d.fromDegrees(137);
+
     private static DoublePublisher publisher;
+
+     public static void init(){
+        gyroSensor.setAngleAdjustment(-offset.getDegrees());
+    }
 
     public static void initNTable(){
         publisher = NetworkTableInstance.getDefault()

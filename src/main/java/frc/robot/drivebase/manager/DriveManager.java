@@ -2,6 +2,7 @@ package frc.robot.drivebase.manager;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.event.EventLoop;
 import frc.robot.drivebase.simpleBackForwardSwerve.SimpleBackForwardSwerveDriveTrain;
@@ -9,12 +10,13 @@ import frc.robot.drivebase.swerveDrive.SwerveDashboardWidgets;
 import frc.robot.drivebase.swerveDrive.SwerveVariables;
 import frc.robot.util.input.ControllerVariables;
 import frc.robot.drivebase.swerveDrive.SwerveDriveTrain;
+import frc.robot.util.input.GamePadManager;
 
 public class DriveManager {
 
     private final SwerveDriveTrain driveTrain;
     //private SimpleBackForwardSwerveDriveTrain simpleTrain;
-    private final XboxController gamepad;
+    private final GamePadManager gamepad;
 
     private final SlewRateLimiter limiterX = new SlewRateLimiter(3);
     private final SlewRateLimiter limiterY = new SlewRateLimiter(3);
@@ -22,21 +24,27 @@ public class DriveManager {
 
     private final EventLoop eventLoop = new EventLoop();
 
-    public DriveManager(XboxController pad) {
+    private static boolean lockInput = false;
+
+    public DriveManager(GamePadManager pad) {
         gamepad = pad;
         driveTrain = new SwerveDriveTrain();
         //simpleTrain = new SimpleBackForwardSwerveDriveTrain();
 
-        gamepad.povUp(eventLoop).ifHigh(DriveManager::increaseDriveSpeed);
-        gamepad.povDown(eventLoop).ifHigh(DriveManager::decreaseDriveSpeed);
+        gamepad.povUp(eventLoop).rising().ifHigh(DriveManager::increaseDriveSpeed);
+        gamepad.povDown(eventLoop).rising().ifHigh(DriveManager::decreaseDriveSpeed);
 
-        gamepad.povRight(eventLoop).ifHigh(DriveManager::increaseRotateSpeed);
-        gamepad.povLeft(eventLoop).ifHigh(DriveManager::decreaseRotateSpeed);
+        gamepad.povRight(eventLoop).rising().ifHigh(DriveManager::increaseRotateSpeed);
+        gamepad.povLeft(eventLoop).rising().ifHigh(DriveManager::decreaseRotateSpeed);
+
+        gamepad.leftStickButton(eventLoop).rising().ifHigh(driveTrain::reset);
+        gamepad.smallLeftButton(eventLoop).rising().ifHigh(driveTrain::setX);
 
         SwerveDashboardWidgets.initShuffleboardLayout();
     }
 
     public void poll(double periodSeconds) {
+        if(lockInput) return;
         eventLoop.poll();
         double x = limiterX
             .calculate(MathUtil.applyDeadband(gamepad.getLeftY(), ControllerVariables.LeftStickYDeadZone))
@@ -90,6 +98,13 @@ public class DriveManager {
 
     public static void decreaseRotateSpeed() {
         SwerveVariables.maxAngularSpeed = Math.max(SwerveVariables.maxAngularSpeed - 0.05, 0);
+    }
+
+    public static void setLock(boolean flag){
+        lockInput = flag;
+    }
+    public static boolean getLock(){
+        return lockInput;
     }
 
 }

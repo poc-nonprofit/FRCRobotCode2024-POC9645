@@ -6,6 +6,10 @@ import edu.wpi.first.math.kinematics.*;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.wpilibj.SPI;
+import frc.robot.drivebase.manager.DriveManager;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static frc.robot.drivebase.swerveDrive.SwerveDashboardWidgets.chassisAngle;
 import static frc.robot.gyro.NavXGyro.gyroSensor;
@@ -57,13 +61,28 @@ public class SwerveDriveTrain {
         );
 
         SwerveDriveKinematics.desaturateWheelSpeeds(state, SwerveVariables.getMaxSpeed());
-
         updatePublisher(state);
 
+        //if((Math.abs(rotation) > 0.01&& Math.abs(x) > 0.01) || (Math.abs(rotation) > 0.01&& Math.abs(y) > 0.01)) {
+            /*ChassisSpeeds speed = kinematics.toChassisSpeeds(state);
+
+            state = kinematics.toSwerveModuleStates(
+                ChassisSpeeds.discretize(
+                    speed.plus(ChassisSpeeds.fromFieldRelativeSpeeds(x / 100, y / 100, 0, Rotation2d.fromDegrees(gyroSensor.getAngle()))),periodSeconds
+                )
+            );*/
+
+
+        /*    swerveFL.setStateRotatingMoving(state[0],x,y,45,Rotation2d.fromDegrees(gyroSensor.getAngle()));
+            swerveFR.setStateRotatingMoving(state[1],x,y,135,Rotation2d.fromDegrees(gyroSensor.getAngle()));
+            swerveRL.setStateRotatingMoving(state[2],x,y,315,Rotation2d.fromDegrees(gyroSensor.getAngle()));
+            swerveRR.setStateRotatingMoving(state[3],x,y,225,Rotation2d.fromDegrees(gyroSensor.getAngle()));
+        }else{*/
         swerveFL.setState(state[0]);
         swerveFR.setState(state[1]);
         swerveRL.setState(state[2]);
         swerveRR.setState(state[3]);
+        /*}*/
 
     }
 
@@ -92,6 +111,30 @@ public class SwerveDriveTrain {
         swerveRL.updateWidget();
         swerveRR.updateWidget();
         chassisAngle.setDouble(gyroSensor.getAngle());
+    }
+
+    public void reset() {
+        /*DriveManager.setLock(true);
+        try (ExecutorService threadPool = Executors.newFixedThreadPool(4)) {
+            threadPool.submit(swerveFL::reset);
+            threadPool.submit(swerveFR::reset);
+            threadPool.submit(swerveRL::reset);
+            threadPool.submit(swerveRR::reset);
+        }finally {
+            DriveManager.setLock(false);
+        }*/
+        swerveFL.reset();
+        swerveFR.reset();
+        swerveRL.reset();
+        swerveRR.reset();
+    }
+
+    public void setX() {
+        System.out.println("X");
+        swerveFL.setState(new SwerveModuleState(0, new Rotation2d(Math.PI / 4)));
+        swerveFR.setState(new SwerveModuleState(0, new Rotation2d(-Math.PI / 4)));
+        swerveRL.setState(new SwerveModuleState(0, new Rotation2d(-Math.PI / 4)));
+        swerveRR.setState(new SwerveModuleState(0, new Rotation2d(Math.PI / 4)));
     }
 
 

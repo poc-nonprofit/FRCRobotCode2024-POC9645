@@ -7,24 +7,24 @@ import frc.robot.drivebase.manager.DriveManager;
 
 import frc.robot.gyro.NavXGyro;
 import frc.robot.upper.launcher.Launcher;
+import frc.robot.util.input.GamePadManager;
 
 
 public class Robot extends TimedRobot {
 
     private final EventLoop eventLoop = new EventLoop();
 
-    private final XboxController gamepad = new XboxController(0);
+    private final XboxController rawGamepad = new XboxController(0);
+    private final GamePadManager gamepad = new GamePadManager(rawGamepad);
 
     private DriveManager driveManager;
-    //private Launcher launcher;
-
-
-
+    private Launcher launcher;
 
     @Override
     public void robotInit() {
         driveManager = new DriveManager(gamepad);
-        //launcher = new Launcher(gamepad);
+        launcher = new Launcher(gamepad);
+        NavXGyro.init();
         NavXGyro.initNTable();
     }
 
@@ -32,12 +32,13 @@ public class Robot extends TimedRobot {
     public void robotPeriodic() {
         eventLoop.poll();
         driveManager.poll(getPeriod());
-        //launcher.poll();
+        launcher.poll();
         NavXGyro.update();
     }
 
     @Override
     public void autonomousInit() {
+        DriveManager.setLock(true);
     }
 
     @Override
@@ -47,7 +48,7 @@ public class Robot extends TimedRobot {
 
     @Override
     public void teleopInit() {
-
+        DriveManager.setLock(false);
     }
 
     @Override
@@ -58,7 +59,6 @@ public class Robot extends TimedRobot {
     @Override
     public void disabledInit() {
     }
-
 
     @Override
     public void disabledPeriodic() {

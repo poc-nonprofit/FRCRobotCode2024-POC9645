@@ -7,4 +7,7 @@ public class ControllerVariables {
     public static double RightStickXDeadZone = 0.05;
     public static double RightStickYDeadZone = 0.05;
 
+    public static final byte TYPE_XBOX = 0;
+    public static final byte TYPE_DUALSHOCK_4 = 1;
+
 }
